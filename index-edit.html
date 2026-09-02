@@ -18,11 +18,13 @@
         .viewer { display: flex; width: 100vw; height: 100vh; }
         .photo-side { flex: 7; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; position: relative; }
         .photo-side img, .photo-side video { max-width: 100%; max-height: 85vh; object-fit: contain; }
-        .caption-side { flex: 2; background: #1a1a1a; padding: 30px; display: flex; flex-direction: column; justify-content: center; border-left: 1px solid #333; }
+        .video-play-overlay { position: absolute; top: 50%; left: 50%; width: 88px; height: 88px; transform: translate(-50%, -50%); display: grid; place-items: center; padding: 0 0 0 6px; background: rgba(0, 0, 0, 0.65); color: #fff; border: 2px solid rgba(255, 255, 255, 0.8); border-radius: 50%; font-size: 2.5rem; line-height: 1; cursor: pointer; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45); }
+        .video-play-overlay:hover { background: rgba(0, 112, 243, 0.9); }
+        .caption-side { flex: 2; background: #1a1a1a; padding: 30px; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; border-left: 1px solid #333; }
         .date-tag { color: #aaa; font-size: 1.4rem; font-weight: bold; margin-bottom: 4px; }
         .folder-tag { font-size: 1.4rem; color: #0070f3; font-weight: bold; margin-bottom: 5px; }
         .filename-label { color: #888; font-size: 0.85rem; margin-bottom: 18px; overflow-wrap: anywhere; }
-        .caption-text { font-size: 1.15rem; line-height: 1.6; margin-bottom: 30px; color: #eee; min-height: 60px; }
+        .caption-text { flex: 1 1 auto; font-size: 1.15rem; line-height: 1.6; margin-bottom: 30px; color: #eee; min-height: 60px; overflow-y: auto; }
         .day-selector { width: 100%; box-sizing: border-box; margin: 8px 0 18px; padding: 10px; background: #111; color: #fff; border: 1px solid #444; border-radius: 6px; font: inherit; }
         .comment-label { color: #aaa; font-size: 0.85rem; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
         .comment-editor { width: 100%; min-height: 105px; box-sizing: border-box; resize: vertical; background: #111; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 12px; font: inherit; line-height: 1.45; }
@@ -44,7 +46,8 @@
             #viewer-screen.viewer { flex-direction: column; height: auto; min-height: 100vh; }
             .photo-side { flex: none; min-height: 58vh; padding: 12px; }
             .photo-side img, .photo-side video { max-height: 62vh; }
-            .caption-side { flex: none; padding: 18px 24px; border-left: none; border-top: 1px solid #333; }
+            .caption-side { flex: none; padding: 18px 24px; justify-content: flex-start; overflow: visible; border-left: none; border-top: 1px solid #333; }
+            .caption-text { flex: none; overflow: visible; }
             .counter { bottom: 10px; left: 12px; }
         }
 
@@ -55,6 +58,7 @@
             .menu-btn { width: 100%; padding: 16px 20px; }
             .photo-side { min-height: 62vh; }
             .photo-side img, .photo-side video { max-height: 68vh; }
+            .video-play-overlay { width: 72px; height: 72px; font-size: 2rem; }
             .caption-side { padding: 16px 20px; }
             .date-tag, .folder-tag { font-size: 1.15rem; }
             .filename-label { margin-bottom: 10px; }
@@ -78,7 +82,8 @@
     <div id="viewer-screen" class="viewer hidden">
         <div class="photo-side">
             <img id="main-photo" src="" alt="Slideshow picture">
-            <video id="main-video" controls class="hidden"></video>
+            <video id="main-video" controls preload="auto" class="hidden"></video>
+            <button class="video-play-overlay hidden" id="video-play-overlay" type="button" onclick="playCurrentVideo()" aria-label="Play video">▶</button>
             <div class="counter" id="photo-counter">0 / 0</div>
         </div>
 
@@ -92,7 +97,7 @@
             <label class="comment-label" for="comment-editor">Your comment for this photo</label>
             <textarea class="comment-editor" id="comment-editor" placeholder="Type a memory, name, or note here…"></textarea>
             <div class="comment-status" id="comment-status" aria-live="polite"></div>
-
+            
             <div class="controls">
                 <button class="nav-btn" onclick="navigate(-1)">← Back</button>
                 <button class="nav-btn" onclick="navigate(1)">Next →</button>
@@ -107,7 +112,7 @@
 
     <script>
         const albums = {
-            "1-2026-maritimes": {
+            "2026-maritimes": {
                 title: "2026 Maritimes",
                 slides: [
                     { src: "2026 Maritimes/Aug 7/1-Halifax Waterfront/20260807_100000 (Heidi A).jpg", day: "Aug 7 — Halifax Waterfront", caption: "" },
@@ -436,11 +441,11 @@
                 ]
             },
 
-            "2-2026-New": {
-                title: "New",
+            "2026-none": {
+                title: "2026 New",
                 slides: [
                     { src: "2026 New/Coming Soon.jpg", day: "2026 New — Album image", caption: "" },
-                 ]
+                ]
             }
         };
 
@@ -509,16 +514,20 @@
             const slide = currentActiveSlides[currentIndex];
             const imgTag = document.getElementById('main-photo');
             const videoTag = document.getElementById('main-video');
+            const videoPlayOverlay = document.getElementById('video-play-overlay');
             videoTag.pause();
 
             if (slide.src.toLowerCase().endsWith('.mp4')) {
                 imgTag.classList.add('hidden');
-                videoTag.classList.remove('hidden');
                 videoTag.src = slide.src;
+                videoTag.load();
+                videoTag.classList.remove('hidden');
+                videoPlayOverlay.classList.remove('hidden');
             } else {
                 videoTag.classList.add('hidden');
                 imgTag.classList.remove('hidden');
                 imgTag.src = slide.src;
+                videoPlayOverlay.classList.add('hidden');
             }
 
             const dayParts = slide.day.split(' — ');
@@ -530,6 +539,10 @@
             document.getElementById('comment-editor').value = currentCaption(slide);
             document.getElementById('comment-status').innerText = '';
             document.getElementById('photo-counter').innerText = `${currentIndex + 1} / ${currentActiveSlides.length}`;
+        }
+
+        function playCurrentVideo() {
+            document.getElementById('main-video').play();
         }
 
         function navigate(direction) {
@@ -583,6 +596,14 @@
             if (e.key === 'ArrowRight') navigate(1);
             if (e.key === 'ArrowLeft') navigate(-1);
             if (e.key === 'Escape') goHome();
+        });
+
+        document.getElementById('main-video').addEventListener('play', () => {
+            document.getElementById('video-play-overlay').classList.add('hidden');
+        });
+
+        document.getElementById('main-video').addEventListener('ended', () => {
+            document.getElementById('video-play-overlay').classList.remove('hidden');
         });
 
         initMenu();

@@ -1,28 +1,32 @@
 # My Photo Albums
 
-This project displays my photo and video albums as a slideshow website. It has:
+This is a photo and video slideshow website. It can be viewed on GitHub Pages and edited on a PC.
 
-- `index.html` — the regular viewer for the published GitHub Pages website.
-- `index-edit.html` — the comment editor used on my PC.
-- `generate-album-list.ps1` and `run-generate-album-list.cmd` — helpers that make the slide list for a new album.
-- One comments JSON file inside each album folder.
+## What each file does
 
-## Important: keep originals safe
+- `index.html` is the public slideshow website. It uses a simple access code for each album and loads the published comments JSON file.
+- `index-edit.html` is the private editor used on a PC. It has no access-code screen and lets you add or change comments.
+- `Tools/generate-album-list.ps1` and `Tools/run-generate-album-list.cmd` create the slide-list text for a new album.
+- Each album has its own comments JSON file inside its main folder.
 
-Keep the original camera photos and videos in a separate backup folder. Make smaller, web-ready copies for this website.
+## Keep originals safe
 
-## 1. Optimize videos with HandBrake
+Keep your original camera photos and videos somewhere safe and separate from this website. Put only smaller, web-ready copies in this project.
 
-Suggested settings for ordinary website videos:
+## Prepare photos and videos
+
+### Videos: HandBrake
+
+Suggested settings for normal website videos:
 
 - Format: MP4
 - Video encoder: H.264
 - Preset: Very Fast 720p30
-- Check: Web Optimized
+- Web Optimized: checked
 
-Keep the original video. Put the smaller MP4 copy in the appropriate location folder.
+Keep the original video. Put the smaller MP4 copy in the appropriate album folder.
 
-## 2. Optimize images with RIOT
+### Images: RIOT
 
 Suggested settings:
 
@@ -33,42 +37,49 @@ Suggested settings:
 - Resample: Catmull-Rom (slow)
 - Keep original date/time: on
 
-Save the optimized copies to a new location. Do not overwrite your only original images.
+Save optimized copies to a new location. Do not overwrite your only originals.
 
-## 3. Organize a new album
+## Add a new album
 
-Create the main album folder in the `photo-albums` folder, for example:
+### 1. Create the folders
+
+Inside the `photo-albums` folder, make a main folder for the album. For example:
 
 ```text
 2026 Maritimes/
   Aug 26/
     1-Halifax/
-    2-Peggy's Cove/
+    2-Peggys Cove/
 ```
 
-- Use date folders, such as `Aug 26`.
-- Use numbered location folders, such as `1-Halifax` and `2-Peggy's Cove`.
-- Put the optimized images and videos in the appropriate location folder.
-- Folder and file names must stay exactly the same after making the slide list. GitHub is case-sensitive.
+- Use date folders such as `Aug 26`.
+- Use numbered location folders such as `1-Halifax` and `2-Peggys Cove`.
+- Put optimized photos and videos in the appropriate location folder.
+- Do not rename folders or media after creating the slide list and comments. The names are used to link photos, videos, and comments.
 
-## 4. Generate the slide list
+### 2. Generate the slide list
 
-Keep these two helper files in the main `photo-albums` folder, beside all album folders:
+Double-click:
 
-- `generate-album-list.ps1`
-- `run-generate-album-list.cmd`
+```text
+Tools/run-generate-album-list.cmd
+```
 
-Double-click `run-generate-album-list.cmd`, then type the exact album folder name, for example:
+When asked, type the exact album folder name, for example:
 
 ```text
 2026 Maritimes
 ```
 
-It creates a file such as `2026-maritimes-list.txt` in the main `photo-albums` folder. The window will tell you where the file was created.
+The generated file stays in the `Tools` folder, for example:
 
-Move that text file into the matching album folder when you are ready to keep it there. Open it, copy its contents, and paste the lines into the new album's `slides: [` section.
+```text
+Tools/2026-maritimes-list.txt
+```
 
-## 5. Add the album to both HTML files
+Open that file and copy its contents. You do not need to move the file.
+
+### 3. Add the album to the HTML files
 
 Open both `index.html` and `index-edit.html`. Find:
 
@@ -76,55 +87,66 @@ Open both `index.html` and `index-edit.html`. Find:
 const albums = {
 ```
 
-Use an existing album as the example and add the new album in both files.
+Copy an existing album section, then change its title, slide list, and folder paths.
 
-- Number the album key so menu order stays correct, for example `"2-2026-maritimes"`.
-- Use the folder name for the title, for example `title: "2026 Maritimes"`.
-- Paste the generated slide-list lines after `slides: [`.
-- In `index.html`, add a casual numeric access-code line for the new album:
+- In `index.html`, use a numbered key to keep the menu order, for example `"3-2026-maritimes"`.
+- Use the folder name as the title, for example `title: "2026 Maritimes"`.
+- Paste the generated lines inside `slides: [ ... ]`.
+- In `index.html`, give every album a different numeric access code:
 
 ```javascript
 accessCode: "202608", // Use a different numeric access code for each album.
 ```
 
-This access code is only for casual privacy. Because the website is public, it is not secure against someone who knows how to inspect website files. Do not reuse a personal password.
+The access code is only casual privacy. Because the website is public, it is not a secure password and must never be a personal password.
 
-## 6. Add comments
+`index-edit.html` does not need an access-code line.
+
+## Add or change comments
 
 1. Open `index-edit.html` on your PC.
-2. Select the album and type comments beside the photos.
+2. Select the album and type comments beside the photos or videos.
 3. Comments save automatically in that browser on that PC.
-4. Click **Download comments** when finished to create a JSON backup.
+4. Click **Download comments** when finished.
 5. Rename the downloaded file to match the album folder. For example:
 
-```text
-2026-maritimes-comments.json
-```
+   ```text
+   2026-maritimes-comments.json
+   ```
 
-6. Put the JSON file inside the matching album folder:
+6. Put it inside that album folder:
 
-```text
-2026 Maritimes/2026-maritimes-comments.json
-```
+   ```text
+   2026 Maritimes/2026-maritimes-comments.json
+   ```
 
-The published website loads the JSON file. When `index.html` is double-clicked on a PC, it uses the browser's locally saved comments instead, because browsers block direct JSON loading from `file:///` pages.
+If you rename a photo, video, or folder after adding comments, re-enter the affected comments in `index-edit.html` and download the JSON again. Comments are linked to the exact media path.
 
-## 7. Upload to GitHub
+## Local viewing and the published website
 
-Commit and push:
+- When you double-click `index.html` on your PC, a browser cannot load its JSON file directly. It displays comments saved earlier by `index-edit.html` in that same browser.
+- On the GitHub Pages website, `index.html` loads each album's comments JSON file.
+- `index-edit.html` is for you only. Do not send it as the public website link.
+
+## Upload changes to GitHub
+
+In GitHub Desktop:
+
+1. Check the changed files in the **Changes** tab.
+2. Enter a short summary, such as `Add 2026 Maritimes album`.
+3. Click **Commit to main**.
+4. Click **Push origin**.
+5. Wait a minute or two, then open the GitHub Pages website and refresh it. Use `Ctrl + F5` if an older version still appears.
+
+For a new album, upload:
 
 - The updated `index.html`
-- The updated `index-edit.html` (optional to publish, but useful to keep backed up)
-- The entire new album folder, including photos, videos, and its comments JSON file
-- Any helper files and this README if you want them backed up in GitHub
+- The updated `index-edit.html`
+- The complete new album folder, including its photos, videos, and comments JSON file
+- Any updated tool or README files
 
-After GitHub Pages updates, open the website's `https://` address and test the new album, comments, videos, and access code.
+## Helpful housekeeping
 
-## Backups
-
-Keep backups of:
-
-- Original photos and videos
-- Optimized web copies
-- Each album's comments JSON file
-- The `index.html` and `index-edit.html` files
+- The files in `Tools` are safe to keep in GitHub. Generated `*-list.txt` files are only helpers and do not affect the live website.
+- `desktop.ini` files are Windows folder settings. They do not harm the website, but can be cleaned out later if desired.
+- Keep backups of original media, web-ready copies, comments JSON files, and both HTML files.

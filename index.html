@@ -28,6 +28,8 @@
         .viewer { display: flex; width: 100vw; height: 100vh; }
         .photo-side { flex: 7; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; position: relative; }
         .photo-side img, .photo-side video { max-width: 100%; max-height: 85vh; object-fit: contain; }
+        .video-play-overlay { position: absolute; top: 50%; left: 50%; width: 88px; height: 88px; transform: translate(-50%, -50%); display: grid; place-items: center; padding: 0 0 0 6px; background: rgba(0, 0, 0, 0.65); color: #fff; border: 2px solid rgba(255, 255, 255, 0.8); border-radius: 50%; font-size: 2.5rem; line-height: 1; cursor: pointer; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45); }
+        .video-play-overlay:hover { background: rgba(0, 112, 243, 0.9); }
         .caption-side { flex: 2; background: #1a1a1a; padding: 30px; display: flex; flex-direction: column; justify-content: flex-start; overflow: hidden; border-left: 1px solid #333; }
         .date-tag { color: #aaa; font-size: 1.4rem; font-weight: bold; margin-bottom: 4px; }
         .folder-tag { font-size: 1.4rem; color: #0070f3; font-weight: bold; margin-bottom: 5px; }
@@ -66,6 +68,7 @@
             .menu-btn { width: 100%; padding: 16px 20px; }
             .photo-side { min-height: 62vh; }
             .photo-side img, .photo-side video { max-height: 68vh; }
+            .video-play-overlay { width: 72px; height: 72px; font-size: 2rem; }
             .caption-side { padding: 16px 20px; }
             .date-tag, .folder-tag { font-size: 1.15rem; }
             .credit-label { margin-bottom: 10px; }
@@ -103,7 +106,8 @@
     <div id="viewer-screen" class="viewer hidden">
         <div class="photo-side">
             <img id="main-photo" src="" alt="Slideshow picture">
-            <video id="main-video" controls class="hidden"></video>
+            <video id="main-video" controls preload="auto" class="hidden"></video>
+            <button class="video-play-overlay hidden" id="video-play-overlay" type="button" onclick="playCurrentVideo()" aria-label="Play video">▶</button>
             <div class="counter" id="photo-counter">0 / 0</div>
         </div>
 
@@ -606,16 +610,20 @@
             const slide = currentActiveSlides[currentIndex];
             const imgTag = document.getElementById('main-photo');
             const videoTag = document.getElementById('main-video');
+            const videoPlayOverlay = document.getElementById('video-play-overlay');
             videoTag.pause();
 
             if (slide.src.toLowerCase().endsWith('.mp4')) {
                 imgTag.classList.add('hidden');
-                videoTag.classList.remove('hidden');
                 videoTag.src = slide.src;
+                videoTag.load();
+                videoTag.classList.remove('hidden');
+                videoPlayOverlay.classList.remove('hidden');
             } else {
                 videoTag.classList.add('hidden');
                 imgTag.classList.remove('hidden');
                 imgTag.src = slide.src;
+                videoPlayOverlay.classList.add('hidden');
             }
 
             const dayParts = slide.day.split(' — ');
@@ -628,6 +636,10 @@
             document.getElementById('caption-label').innerText = currentCaption(slide);
             document.getElementById('day-selector').value = dayParts[0];
             document.getElementById('photo-counter').innerText = `${currentIndex + 1} / ${currentActiveSlides.length}`;
+        }
+
+        function playCurrentVideo() {
+            document.getElementById('main-video').play();
         }
 
         function navigate(direction) {
@@ -649,6 +661,14 @@
             if (e.key === 'ArrowRight') navigate(1);
             if (e.key === 'ArrowLeft') navigate(-1);
             if (e.key === 'Escape') goHome();
+        });
+
+        document.getElementById('main-video').addEventListener('play', () => {
+            document.getElementById('video-play-overlay').classList.add('hidden');
+        });
+
+        document.getElementById('main-video').addEventListener('ended', () => {
+            document.getElementById('video-play-overlay').classList.remove('hidden');
         });
 
         initMenu();
