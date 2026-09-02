@@ -560,7 +560,11 @@
         }
 
         function downloadCaptions() {
-            const backup = new Blob([JSON.stringify(savedCaptions, null, 2)], { type: 'application/json' });
+            const activePaths = new Set(currentActiveSlides.map(slide => slide.src));
+            const albumCaptions = Object.fromEntries(
+                Object.entries(savedCaptions).filter(([path]) => activePaths.has(path))
+            );
+            const backup = new Blob([JSON.stringify(albumCaptions, null, 2)], { type: 'application/json' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(backup);
             const albumFolderName = currentActiveSlides[0]?.src.split('/')[0] || 'photo-albums';
@@ -579,7 +583,7 @@
                 try {
                     const imported = JSON.parse(reader.result);
                     if (!imported || Array.isArray(imported) || typeof imported !== 'object') throw new Error('Invalid file');
-                    savedCaptions = imported;
+                    savedCaptions = { ...savedCaptions, ...imported };
                     localStorage.setItem(captionStorageKey, JSON.stringify(savedCaptions));
                     displayMedia();
                     document.getElementById('comment-status').innerText = 'Comments imported';
