@@ -99,7 +99,7 @@
                 <button class="nav-btn" onclick="navigate(-1)">← Back</button>
                 <button class="nav-btn" onclick="navigate(1)">Next →</button>
             </div>
-            <button class="home-btn" onclick="goHome()">🏠 Back to Photo Albums</button>
+            <button class="home-btn" id="home-button" onclick="goHome()">🏠 Back to Photo Albums</button>
         </div>
     </div>
 
@@ -433,18 +433,18 @@
                     { src: "2026 Maritimes/Aug 19/4-Misc/20260826_999999 Maritimes Route Map – Google Earth.jpg", day: "Aug 19 — Misc", caption: "" },
                 ]
             },
-        /* Remove commented area to add new album
             "2-2026-New": {
                 title: "New",
                 slides: [
                     { src: "2026 New/Coming Soon.jpg", day: "2026 New — Album image", caption: "" },
                 ]
             },
-        */
         };
 
         let currentActiveSlides = [];
         let currentIndex = 0;
+        const requestedAlbumKey = new URLSearchParams(window.location.search).get('album');
+        const isSharedAlbumLink = Boolean(requestedAlbumKey && albums[requestedAlbumKey]);
         const captionStorageKey = 'photo-albums-captions-v1';
         let savedCaptions = {};
 
@@ -498,9 +498,18 @@
                 const btn = document.createElement('button');
                 btn.className = 'menu-btn';
                 btn.innerText = albums[key].title;
-                btn.onclick = () => startSlideshow(key);
+                btn.onclick = () => openAlbumFromMenu(key);
                 menuGrid.appendChild(btn);
             });
+
+            if (isSharedAlbumLink) startSlideshow(requestedAlbumKey);
+        }
+
+        function openAlbumFromMenu(albumKey) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('album', albumKey);
+            window.history.replaceState(null, '', url);
+            startSlideshow(albumKey);
         }
 
         function populateDaySelector() {
@@ -522,6 +531,7 @@
             currentIndex = 0;
             document.getElementById('menu-screen').classList.add('hidden');
             document.getElementById('viewer-screen').classList.remove('hidden');
+            document.getElementById('home-button').classList.toggle('hidden', isSharedAlbumLink);
             populateDaySelector();
             await loadCaptions(currentActiveSlides);
             displayMedia();
@@ -573,9 +583,13 @@
         }
 
         function goHome() {
+            if (isSharedAlbumLink) return;
             document.getElementById('main-video').pause();
             document.getElementById('viewer-screen').classList.add('hidden');
             document.getElementById('menu-screen').classList.remove('hidden');
+            const url = new URL(window.location.href);
+            url.searchParams.delete('album');
+            window.history.replaceState(null, '', url);
         }
 
         document.addEventListener('keydown', (e) => {
