@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Photo Albums</title>
+    <style>
+        body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #fff; display: flex; height: 100vh; overflow: hidden; }
+        .hidden { display: none !important; }
+
+        /* MENU SCREEN STYLES */
+        #menu-screen { width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #111; }
+        .menu-grid { display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap; justify-content: center; }
+        .menu-btn { padding: 20px 40px; background: #222; border: 2px solid #333; color: white; font-size: 1.25rem; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .menu-btn:hover { background: #0070f3; border-color: #0070f3; transform: translateY(-2px); }
+
+        /* PASSWORD SCREEN STYLES */
+        #password-screen { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; background: #111; }
+        .password-card { width: min(360px, calc(100vw - 48px)); padding: 30px; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; text-align: center; }
+        .password-card h2 { margin: 0 0 10px; }
+        .password-card p { color: #bbb; margin: 0 0 20px; }
+        .password-input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #555; border-radius: 6px; background: #111; color: #fff; font-size: 1rem; }
+        .password-actions { display: flex; gap: 10px; margin-top: 14px; }
+        .password-actions button { flex: 1; }
+        .password-error { min-height: 20px; margin: 10px 0 0; color: #ff8585 !important; font-size: 0.9rem; }
+
+        /* VIEWER SCREEN STYLES */
+        .viewer { display: flex; width: 100vw; height: 100vh; }
+        .photo-side { flex: 7; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; position: relative; }
+        .photo-side img, .photo-side video { max-width: 100%; max-height: 85vh; object-fit: contain; }
+        .caption-side { flex: 2; background: #1a1a1a; padding: 30px; display: flex; flex-direction: column; justify-content: center; border-left: 1px solid #333; }
+        .date-tag { color: #aaa; font-size: 1.4rem; font-weight: bold; margin-bottom: 4px; }
+        .folder-tag { font-size: 1.4rem; color: #0070f3; font-weight: bold; margin-bottom: 5px; }
+        .filename-label { color: #888; font-size: 0.85rem; margin-bottom: 18px; overflow-wrap: anywhere; }
+        .caption-text { font-size: 1.15rem; line-height: 1.6; margin-bottom: 30px; color: #eee; min-height: 60px; }
+        .day-selector { width: 100%; box-sizing: border-box; margin: 8px 0 18px; padding: 10px; background: #111; color: #fff; border: 1px solid #444; border-radius: 6px; font: inherit; }
+        .comment-label { color: #aaa; font-size: 0.85rem; font-weight: bold; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+        .comment-editor { width: 100%; min-height: 105px; box-sizing: border-box; resize: vertical; background: #111; color: #fff; border: 1px solid #444; border-radius: 6px; padding: 12px; font: inherit; line-height: 1.45; }
+        .comment-editor:focus { outline: none; border-color: #0070f3; }
+        .comment-status { color: #78d17c; font-size: 0.85rem; min-height: 1.3em; margin: 6px 0 16px; }
+        .controls { display: flex; gap: 15px; }
+        button.nav-btn { padding: 14px 28px; background: #0070f3; color: white; border: none; cursor: pointer; border-radius: 6px; font-size: 1.1rem; font-weight: bold; }
+        button.nav-btn:hover { background: #0051a8; }
+        button.home-btn { background: transparent; border: 1px solid #444; color: #aaa; margin-top: 40px; padding: 10px; cursor: pointer; border-radius: 4px; width: fit-content; }
+        button.home-btn:hover { color: #fff; border-color: #666; }
+        .comment-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+        .comment-tools button, .import-comments { background: transparent; border: 1px solid #444; color: #bbb; padding: 8px 10px; border-radius: 4px; cursor: pointer; font: inherit; font-size: 0.85rem; }
+        .comment-tools button:hover, .import-comments:hover { color: #fff; border-color: #777; }
+        .counter { position: absolute; bottom: 20px; left: 20px; color: #555; font-size: 0.9rem; }
+
+        /* Tablets in portrait and phones: photo first, details underneath. */
+        @media (max-width: 900px) and (orientation: portrait) {
+            body { height: auto; min-height: 100vh; overflow: auto; }
+            #viewer-screen.viewer { flex-direction: column; height: auto; min-height: 100vh; }
+            .photo-side { flex: none; min-height: 58vh; padding: 12px; }
+            .photo-side img, .photo-side video { max-height: 62vh; }
+            .caption-side { flex: none; padding: 18px 24px; border-left: none; border-top: 1px solid #333; }
+            .counter { bottom: 10px; left: 12px; }
+        }
+
+        /* Smaller phones: keep controls easy to tap and text comfortably sized. */
+        @media (max-width: 600px) {
+            #menu-screen { padding: 24px; box-sizing: border-box; text-align: center; }
+            .menu-grid { margin-top: 20px; gap: 12px; }
+            .menu-btn { width: 100%; padding: 16px 20px; }
+            .photo-side { min-height: 62vh; }
+            .photo-side img, .photo-side video { max-height: 68vh; }
+            .caption-side { padding: 16px 20px; }
+            .date-tag, .folder-tag { font-size: 1.15rem; }
+            .filename-label { margin-bottom: 10px; }
+            .caption-text { margin-bottom: 14px; min-height: 0; }
+            .controls { gap: 10px; }
+            button.nav-btn { flex: 1; padding: 13px 10px; font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SCREEN 1: PHOTO ALBUM SELECTOR MENU -->
+    <div id="menu-screen">
+        <h1>My Photo Albums</h1>
+        <div class="menu-grid" id="menu-options">
+            <!-- Buttons will automatically generate here -->
+        </div>
+    </div>
+
+    <!-- PASSWORD SCREEN: shown before an album opens -->
+    <div id="password-screen" class="hidden">
+        <form class="password-card" onsubmit="unlockAlbum(event)">
+            <h2 id="password-album-title">Photo Album</h2>
+            <p>Enter the album password to continue.</p>
+            <input class="password-input" id="album-password" type="password" autocomplete="current-password" required>
+            <div class="password-actions">
+                <button class="nav-btn" type="button" onclick="cancelPassword()">Cancel</button>
+                <button class="nav-btn" type="submit">Open Album</button>
+            </div>
+            <p class="password-error" id="password-error" aria-live="polite"></p>
+        </form>
+    </div>
+
+    <!-- SCREEN 2: THE SLIDESHOW VIEWER -->
+    <div id="viewer-screen" class="viewer hidden">
+        <div class="photo-side">
+            <img id="main-photo" src="" alt="Slideshow picture">
+            <video id="main-video" controls class="hidden"></video>
+            <div class="counter" id="photo-counter">0 / 0</div>
+        </div>
+
+        <div class="caption-side">
+            <div class="date-tag" id="date-label">Date</div>
+            <div class="folder-tag" id="folder-label">Folder Name</div>
+            <div class="filename-label" id="filename-label">Filename</div>
+            <p class="caption-text" id="caption-label"></p>
+            <label class="comment-label" for="day-selector">Jump to day</label>
+            <select class="day-selector" id="day-selector" onchange="jumpToDay(this.value)"></select>
+
+            <div class="controls">
+                <button class="nav-btn" onclick="navigate(-1)">← Back</button>
+                <button class="nav-btn" onclick="navigate(1)">Next →</button>
+            </div>
+            <button class="home-btn" onclick="goHome()">🏠 Back to Photo Albums</button>
+        </div>
+    </div>
+
+    <script>
+        const albums = {
+            "1-2026-maritimes": {
+                title: "2026 Maritimes",
+                password: "maritimes",
+                slides: [
+                    { src: "2026 Maritimes/Aug 7/1-Halifax Waterfront/20260807_100000 (Heidi A).jpg", day: "Aug 7 — Halifax Waterfront", caption: "" },
+                    { src: "2026 Maritimes/Aug 7/1-Halifax Waterfront/20260807_110000 (Heidi A).jpg", day: "Aug 7 — Halifax Waterfront", caption: "" },
+                    { src: "2026 Maritimes/Aug 7/1-Halifax Waterfront/20260807_183033.jpg", day: "Aug 7 — Halifax Waterfront", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/1-Halifax, NS/20260808_111429.jpg", day: "Aug 8 — Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/1-Halifax, NS/20260808_111446.jpg", day: "Aug 8 — Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/2-Titanic Cemetery, Halifax, NS/20260808_010000 (Joyce M).jpg", day: "Aug 8 — Titanic Cemetery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/2-Titanic Cemetery, Halifax, NS/20260808_095708.jpg", day: "Aug 8 — Titanic Cemetery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/2-Titanic Cemetery, Halifax, NS/20260808_101910.jpg", day: "Aug 8 — Titanic Cemetery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/3-Halifax Public Gardens/20260808_010000 (Gary G).jpg", day: "Aug 8 — Halifax Public Gardens", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/3-Halifax Public Gardens/20260808_020000 (Gary G).jpg", day: "Aug 8 — Halifax Public Gardens", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/3-Halifax Public Gardens/20260808_030000 (Gary G).jpg", day: "Aug 8 — Halifax Public Gardens", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/3-Halifax Public Gardens/20260808_105546.jpg", day: "Aug 8 — Halifax Public Gardens", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/4-Halifax Citadel/20260808_111623.jpg", day: "Aug 8 — Halifax Citadel", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/4-Halifax Citadel/20260808_111957.jpg", day: "Aug 8 — Halifax Citadel", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/4-Halifax Citadel/20260808_112009.jpg", day: "Aug 8 — Halifax Citadel", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/4-Halifax Citadel/20260808_112124.jpg", day: "Aug 8 — Halifax Citadel", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/4-Halifax Citadel/20260808_114553.jpg", day: "Aug 8 — Halifax Citadel", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/5-Silva Sailing Ship, Halifax, NS/20260808_000000 (Map).jpg", day: "Aug 8 — Silva Sailing Ship, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/5-Silva Sailing Ship, Halifax, NS/20260808_010000 (Kathryn H).jpg", day: "Aug 8 — Silva Sailing Ship, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/5-Silva Sailing Ship, Halifax, NS/20260808_150605.jpg", day: "Aug 8 — Silva Sailing Ship, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/5-Silva Sailing Ship, Halifax, NS/20260808_161214.jpg", day: "Aug 8 — Silva Sailing Ship, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/5-Silva Sailing Ship, Halifax, NS/20260808_161306.jpg", day: "Aug 8 — Silva Sailing Ship, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/5-Silva Sailing Ship, Halifax, NS/20260808_163347.jpg", day: "Aug 8 — Silva Sailing Ship, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/5-Silva Sailing Ship, Halifax, NS/20260808_163651.jpg", day: "Aug 8 — Silva Sailing Ship, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/5-Silva Sailing Ship, Halifax, NS/20260808_164241.jpg", day: "Aug 8 — Silva Sailing Ship, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/5-Silva Sailing Ship, Halifax, NS/20260808_171734 (handbreak).mp4", day: "Aug 8 — Silva Sailing Ship, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/5-Silva Sailing Ship, Halifax, NS/20260808_171800.jpg", day: "Aug 8 — Silva Sailing Ship, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 8/5-Silva Sailing Ship, Halifax, NS/20260808_174502.jpg", day: "Aug 8 — Silva Sailing Ship, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_000000 (Itinerary).jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_000000 (Map).jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_090026.jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_090123.jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_090139.jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_091310.jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_092710.jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_092902.jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_093113.jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_093646.jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_095540.jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/1-Peggy's Cove, NS/20260809_100000 (Gary G).jpg", day: "Aug 9 — Peggy's Cove, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/2-Mahone Bay, NS/20260809_111046.jpg", day: "Aug 9 — Mahone Bay, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/3-Lunenburg, NS - Bluenose II/20260809_113427.jpg", day: "Aug 9 — Lunenburg, NS - Bluenose II", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/3-Lunenburg, NS - Bluenose II/20260809_113741.jpg", day: "Aug 9 — Lunenburg, NS - Bluenose II", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/3-Lunenburg, NS - Bluenose II/20260809_113804.jpg", day: "Aug 9 — Lunenburg, NS - Bluenose II", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/3-Lunenburg, NS - Bluenose II/20260809_114535.jpg", day: "Aug 9 — Lunenburg, NS - Bluenose II", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/3-Lunenburg, NS - Bluenose II/20260809_120000 (Barbara B).jpg", day: "Aug 9 — Lunenburg, NS - Bluenose II", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/3-Lunenburg, NS - Bluenose II/20260809_151201.jpg", day: "Aug 9 — Lunenburg, NS - Bluenose II", caption: "" },
+                    { src: "2026 Maritimes/Aug 9/3-Lunenburg, NS - Bluenose II/20260809_160000 (Joyce M).jpg", day: "Aug 9 — Lunenburg, NS - Bluenose II", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/1-Wolfville, NS - Old Orchard Inn/20260810_000000 (Itinerary).jpg", day: "Aug 10 — Wolfville, NS - Old Orchard Inn", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/1-Wolfville, NS - Old Orchard Inn/20260810_000000 (Map).jpg", day: "Aug 10 — Wolfville, NS - Old Orchard Inn", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/1-Wolfville, NS - Old Orchard Inn/20260810_083416.jpg", day: "Aug 10 — Wolfville, NS - Old Orchard Inn", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/1-Wolfville, NS - Old Orchard Inn/20260810_083458.jpg", day: "Aug 10 — Wolfville, NS - Old Orchard Inn", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/1-Wolfville, NS - Old Orchard Inn/20260810_083527.jpg", day: "Aug 10 — Wolfville, NS - Old Orchard Inn", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/2-Grand Pre, NS/20260810_090314.jpg", day: "Aug 10 — Grand Pre, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/2-Grand Pre, NS/20260810_094309.jpg", day: "Aug 10 — Grand Pre, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/2-Grand Pre, NS/20260810_094350.jpg", day: "Aug 10 — Grand Pre, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/2-Grand Pre, NS/20260810_094421.jpg", day: "Aug 10 — Grand Pre, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/2-Grand Pre, NS/20260810_100404.jpg", day: "Aug 10 — Grand Pre, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/2-Grand Pre, NS/20260810_100424.jpg", day: "Aug 10 — Grand Pre, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/2-Grand Pre, NS/20260810_110000 (Heidi A).jpg", day: "Aug 10 — Grand Pre, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/2-Grand Pre, NS/20260810_120000 (Heidi A).jpg", day: "Aug 10 — Grand Pre, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/3-Annapolis Royal, NS/20260810_010000 (Gary G).jpg", day: "Aug 10 — Annapolis Royal, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/3-Annapolis Royal, NS/20260810_131143.jpg", day: "Aug 10 — Annapolis Royal, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/3-Annapolis Royal, NS/20260810_131147.jpg", day: "Aug 10 — Annapolis Royal, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/3-Annapolis Royal, NS/20260810_131356.jpg", day: "Aug 10 — Annapolis Royal, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/4-Port Royal, NS/20260810_010000 (Joyce M).jpg", day: "Aug 10 — Port Royal, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/4-Port Royal, NS/20260810_141230.jpg", day: "Aug 10 — Port Royal, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/4-Port Royal, NS/20260810_141900.jpg", day: "Aug 10 — Port Royal, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/4-Port Royal, NS/20260810_145450.jpg", day: "Aug 10 — Port Royal, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/4-Port Royal, NS/20260810_145512.jpg", day: "Aug 10 — Port Royal, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/4-Port Royal, NS/20260810_145608.jpg", day: "Aug 10 — Port Royal, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 10/4-Port Royal, NS/20260810_150000 (Joyce M).jpg", day: "Aug 10 — Port Royal, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/1-Saint John, NB/20260811_000000 (Itineray).jpg", day: "Aug 11 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/1-Saint John, NB/20260811_000000 (Map).jpg", day: "Aug 11 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/1-Saint John, NB/20260811_084528.jpg", day: "Aug 11 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/1-Saint John, NB/20260811_100000 (Barbara B).jpg", day: "Aug 11 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/1-Saint John, NB/20260811_110000 (Barbara B).jpg", day: "Aug 11 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/1-Saint John, NB/20260811_170750.jpg", day: "Aug 11 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/2-Reversing Falls, Saint John, NB/20260811_095318.jpg", day: "Aug 11 — Reversing Falls, Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/2-Reversing Falls, Saint John, NB/20260811_095501 (handbrake).mp4", day: "Aug 11 — Reversing Falls, Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/2-Reversing Falls, Saint John, NB/20260811_095509.jpg", day: "Aug 11 — Reversing Falls, Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/2-Reversing Falls, Saint John, NB/20260811_095634 (handbreak).mp4", day: "Aug 11 — Reversing Falls, Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/2-Reversing Falls, Saint John, NB/20260811_095639.jpg", day: "Aug 11 — Reversing Falls, Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/2-Reversing Falls, Saint John, NB/20260811_095823.jpg", day: "Aug 11 — Reversing Falls, Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/2-Reversing Falls, Saint John, NB/20260811_100502.jpg", day: "Aug 11 — Reversing Falls, Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/3-St Andrews, NB - Market Wharf/20260811_010000 (Gary G).jpg", day: "Aug 11 — St Andrews, NB - Market Wharf", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/3-St Andrews, NB - Market Wharf/20260811_134404.jpg", day: "Aug 11 — St Andrews, NB - Market Wharf", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/3-St Andrews, NB - Market Wharf/20260811_134546.jpg", day: "Aug 11 — St Andrews, NB - Market Wharf", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/3-St Andrews, NB - Market Wharf/20260811_134649.jpg", day: "Aug 11 — St Andrews, NB - Market Wharf", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/3-St Andrews, NB - Market Wharf/20260811_134702.jpg", day: "Aug 11 — St Andrews, NB - Market Wharf", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/3-St Andrews, NB - Market Wharf/20260811_134714.jpg", day: "Aug 11 — St Andrews, NB - Market Wharf", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/3-St Andrews, NB - Market Wharf/20260811_151520.jpg", day: "Aug 11 — St Andrews, NB - Market Wharf", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/4-Reversing Falls, Saint John, NB/20260811_163546.jpg", day: "Aug 11 — Reversing Falls, Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/4-Reversing Falls, Saint John, NB/20260811_163640 (handbreak).mp4", day: "Aug 11 — Reversing Falls, Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/4-Reversing Falls, Saint John, NB/20260811_164101 (handbreak).mp4", day: "Aug 11 — Reversing Falls, Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 11/5-Saint John, NB/20260811_ 010000 (Joyce M).jpg", day: "Aug 11 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/1-Saint John, NB/20260812_000000 (Itinerary).jpg", day: "Aug 12 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/1-Saint John, NB/20260812_000000 (Map).jpg", day: "Aug 12 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/1-Saint John, NB/20260812_080506.jpg", day: "Aug 12 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/1-Saint John, NB/20260812_080512.jpg", day: "Aug 12 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/1-Saint John, NB/20260812_090000 (Joyce M).jpg", day: "Aug 12 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/1-Saint John, NB/20260812_100000 (Joyce M).jpg", day: "Aug 12 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/1-Saint John, NB/20260812_110000 (Joyce M).jpg", day: "Aug 12 — Saint John, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/2-Sawmill Creek Bridge, NB/20260812_110946.jpg", day: "Aug 12 — Sawmill Creek Bridge, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/3-Hopewell Rocks, NB - High Tide/20260812_113801.jpg", day: "Aug 12 — Hopewell Rocks, NB - High Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/3-Hopewell Rocks, NB - High Tide/20260812_113846.jpg", day: "Aug 12 — Hopewell Rocks, NB - High Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/3-Hopewell Rocks, NB - High Tide/20260812_114137.jpg", day: "Aug 12 — Hopewell Rocks, NB - High Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/3-Hopewell Rocks, NB - High Tide/20260812_114541.jpg", day: "Aug 12 — Hopewell Rocks, NB - High Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_150323.jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_150427.jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_150521.jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_150524.jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_150529.jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_150550.jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_150553.jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_150613.jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_151249.jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_151514.jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_151612.jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_160000 (Kathryn H).jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/4-Hopewell Rocks, NB - Low Tide/20260812_170000 (Kathryn H).jpg", day: "Aug 12 — Hopewell Rocks, NB - Low Tide", caption: "" },
+                    { src: "2026 Maritimes/Aug 12/5-Moncton, NB/20260812_200756.jpg", day: "Aug 12 — Moncton, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/1-Shediac, NB/20260813_000000 (Itinerary).jpg", day: "Aug 13 — Shediac, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/1-Shediac, NB/20260813_000000 (Map).jpg", day: "Aug 13 — Shediac, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/1-Shediac, NB/20260813_010000 (Gary G).jpg", day: "Aug 13 — Shediac, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/1-Shediac, NB/20260813_095313.jpg", day: "Aug 13 — Shediac, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/1-Shediac, NB/20260813_095343.jpg", day: "Aug 13 — Shediac, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/1-Shediac, NB/20260813_095435.jpg", day: "Aug 13 — Shediac, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/1-Shediac, NB/20260813_100000 (Barbara B).jpg", day: "Aug 13 — Shediac, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/1-Shediac, NB/20260813_110000 (Barbara B).jpg", day: "Aug 13 — Shediac, NB", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/2-Confederation Bridge, NB, PEI/20260813_112417.jpg", day: "Aug 13 — Confederation Bridge, NB, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/2-Confederation Bridge, NB, PEI/20260813_113627.jpg", day: "Aug 13 — Confederation Bridge, NB, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/2-Confederation Bridge, NB, PEI/20260813_113708.jpg", day: "Aug 13 — Confederation Bridge, NB, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/2-Confederation Bridge, NB, PEI/20260813_113826.jpg", day: "Aug 13 — Confederation Bridge, NB, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/2-Confederation Bridge, NB, PEI/20260813_113911.jpg", day: "Aug 13 — Confederation Bridge, NB, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/2-Confederation Bridge, NB, PEI/20260813_113956.jpg", day: "Aug 13 — Confederation Bridge, NB, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/2-Confederation Bridge, NB, PEI/20260813_120000 (Kathryn H).jpg", day: "Aug 13 — Confederation Bridge, NB, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/2-Confederation Bridge, NB, PEI/20260813_130000 (Kathryn H).jpg", day: "Aug 13 — Confederation Bridge, NB, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/2-Confederation Bridge, NB, PEI/20260813_140000 (Kathryn H).jpg", day: "Aug 13 — Confederation Bridge, NB, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/2-Confederation Bridge, NB, PEI/20260813_150000 (Kathryn H).jpg", day: "Aug 13 — Confederation Bridge, NB, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/2-Confederation Bridge, NB, PEI/20260813_160000 (Kathryn H).jpg", day: "Aug 13 — Confederation Bridge, NB, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/3-Charlottetown, PEI - Come From Away Play/20260813_190712.jpg", day: "Aug 13 — Charlottetown, PEI - Come From Away Play", caption: "" },
+                    { src: "2026 Maritimes/Aug 13/3-Charlottetown, PEI - Come From Away Play/20260813_200000 (Gary G).jpg", day: "Aug 13 — Charlottetown, PEI - Come From Away Play", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_000000 (Itinerary).jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_000001 (Map).jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_000002 (Map).jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_010000 (Gary G).jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_091710.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_092050.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_092237.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_092328.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_092353.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_092438.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_094829.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_095344.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_095357.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_095455 (handbreak).mp4", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_095502.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_095610.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_095641.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/1-Charlottetown, PEI/20260814_095813.jpg", day: "Aug 14 — Charlottetown, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/2-Green Gables Historic Site, PEI/20260814_130536.jpg", day: "Aug 14 — Green Gables Historic Site, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/2-Green Gables Historic Site, PEI/20260814_130703.jpg", day: "Aug 14 — Green Gables Historic Site, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/2-Green Gables Historic Site, PEI/20260814_133610.jpg", day: "Aug 14 — Green Gables Historic Site, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/3-Lucy Montgomery Birth Place, PEI/20260814_150752.jpg", day: "Aug 14 — Lucy Montgomery Birth Place, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/3-Lucy Montgomery Birth Place, PEI/20260814_150845.jpg", day: "Aug 14 — Lucy Montgomery Birth Place, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_153300.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_153420.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_153505.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_153511.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_153550.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_153615.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_153634.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_154222.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_155000 (Barbara B).jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_156000 (Kathryn H).jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_157000 (Kathryn H).jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_158000 (Kathryn H).jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_161212.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_161235.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_161322.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/4-Cavendish Beach, PEI/20260814_163204.jpg", day: "Aug 14 — Cavendish Beach, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/5-Fisherman's Wharf, PEI/20260814_164016.jpg", day: "Aug 14 — Fisherman's Wharf, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/5-Fisherman's Wharf, PEI/20260814_170000 (Gary G).jpg", day: "Aug 14 — Fisherman's Wharf, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/5-Fisherman's Wharf, PEI/20260814_170753.jpg", day: "Aug 14 — Fisherman's Wharf, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/5-Fisherman's Wharf, PEI/20260814_174631.jpg", day: "Aug 14 — Fisherman's Wharf, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/5-Fisherman's Wharf, PEI/20260814_174654.jpg", day: "Aug 14 — Fisherman's Wharf, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 14/5-Fisherman's Wharf, PEI/20260814_174823.jpg", day: "Aug 14 — Fisherman's Wharf, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/1-Woods Island Ferry, PEI/20260815_000000 (Itinerary).jpg", day: "Aug 15 — Woods Island Ferry, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/1-Woods Island Ferry, PEI/20260815_000000 (Map).jpg", day: "Aug 15 — Woods Island Ferry, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/1-Woods Island Ferry, PEI/20260815_010000 (Gary G).jpg", day: "Aug 15 — Woods Island Ferry, PEI", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/2-Alexander Graham Bell Museum, Cape Breton Island, NS/20260815_155944.jpg", day: "Aug 15 — Alexander Graham Bell Museum, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/2-Alexander Graham Bell Museum, Cape Breton Island, NS/20260815_160024.jpg", day: "Aug 15 — Alexander Graham Bell Museum, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/2-Alexander Graham Bell Museum, Cape Breton Island, NS/20260815_162519.jpg", day: "Aug 15 — Alexander Graham Bell Museum, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/2-Alexander Graham Bell Museum, Cape Breton Island, NS/20260815_163022.jpg", day: "Aug 15 — Alexander Graham Bell Museum, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/3-Baddeck, Cape Breton Island, NS/20260815_172349.jpg", day: "Aug 15 — Baddeck, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/3-Baddeck, Cape Breton Island, NS/20260815_192046.jpg", day: "Aug 15 — Baddeck, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/3-Baddeck, Cape Breton Island, NS/20260815_192332.jpg", day: "Aug 15 — Baddeck, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/3-Baddeck, Cape Breton Island, NS/20260815_192333.jpg", day: "Aug 15 — Baddeck, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 15/3-Baddeck, Cape Breton Island, NS/20260815_202416 (handbreak).mp4", day: "Aug 15 — Baddeck, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_000000 (Itinerary).jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_000000 (Map).jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_081243.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_090538.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_091800 (Kathryn H).jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_091801.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_091827.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_091954.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_093032.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_093044.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_093131.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_095253.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_100236.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_100441.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_100925.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_102102.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_102431.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_103520.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_103616.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_110822.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_123406.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_125638.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_133838.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_133856.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_134105.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_152632.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_152746.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/1-Cabot Trail, Cape Breton Island, NS/20260816_152814.jpg", day: "Aug 16 — Cabot Trail, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/2-Sydney, Cape Breton Island, NS/20260816_185652.jpg", day: "Aug 16 — Sydney, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 16/2-Sydney, Cape Breton Island, NS/20260818_190000 (Joyce M).jpg", day: "Aug 16 — Sydney, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_000000 (Itinerary).jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_000000 (Map).jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_095034.jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_100000 (Joyce M).jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_102351.jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_102400 (Heidi A).jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_102528.jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_104240.jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_105304.jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_105810.jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_110000 (Heidi A).jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_111000 (Joyce M).jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/1-Miner's Museum, Glace Bay, Cape Breton Island, NS/20260817_112323.jpg", day: "Aug 17 — Miner's Museum, Glace Bay, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_141620.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_142139.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_142217.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_142254.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_142304.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_142324.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_142945.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_143100 (Phil M).jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_143200 (Barbara B).jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_143300 (Joyce M).jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_143400 (Heidi A).jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_143603.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_144011.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_145646.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_151321.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_151513.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_153454.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_153505.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_154721.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_154738.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_154842.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_154914.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_155032.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/2-Fortress of Louisbourg, Cape Breton Island, NS/20260817_155053.jpg", day: "Aug 17 — Fortress of Louisbourg, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/3-Old Triangle Ale House, Sydney, Cape Breton Island, NS/20260817_181327.jpg", day: "Aug 17 — Old Triangle Ale House, Sydney, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/3-Old Triangle Ale House, Sydney, Cape Breton Island, NS/20260817_181524.jpg", day: "Aug 17 — Old Triangle Ale House, Sydney, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 17/3-Old Triangle Ale House, Sydney, Cape Breton Island, NS/20260817_190000 (Gary G)(handbreak).mp4", day: "Aug 17 — Old Triangle Ale House, Sydney, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/1-Sydney, Cape Breton Island, NS/20260818_000000 (Itinerary).jpg", day: "Aug 18 — Sydney, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/1-Sydney, Cape Breton Island, NS/20260818_000000 (Map).jpg", day: "Aug 18 — Sydney, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/1-Sydney, Cape Breton Island, NS/20260818_100000 (Heidi A).jpg", day: "Aug 18 — Sydney, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/1-Sydney, Cape Breton Island, NS/20260818_110000 (Heidi A).jpg", day: "Aug 18 — Sydney, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/1-Sydney, Cape Breton Island, NS/20260818_120000 (Heidi A).jpg", day: "Aug 18 — Sydney, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/1-Sydney, Cape Breton Island, NS/20260818_130000 (Heidi A).jpg", day: "Aug 18 — Sydney, Cape Breton Island, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/2-Millbrook Cultural Centre, NS/20260818_142501.jpg", day: "Aug 18 — Millbrook Cultural Centre, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/3-Hampton Inn, Halifax, NS/20260818_100000 (Phil M).jpg", day: "Aug 18 — Hampton Inn, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/3-Hampton Inn, Halifax, NS/20260818_110000 (Phil M).jpg", day: "Aug 18 — Hampton Inn, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/3-Hampton Inn, Halifax, NS/20260818_120000 (Phil M).jpg", day: "Aug 18 — Hampton Inn, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/3-Hampton Inn, Halifax, NS/20260818_130000 (Phil M).jpg", day: "Aug 18 — Hampton Inn, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/3-Hampton Inn, Halifax, NS/20260818_140000 (Phil M).jpg", day: "Aug 18 — Hampton Inn, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/3-Hampton Inn, Halifax, NS/20260818_150000 (Phil M).jpg", day: "Aug 18 — Hampton Inn, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/3-Hampton Inn, Halifax, NS/20260818_160000 (Phil M).jpg", day: "Aug 18 — Hampton Inn, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/3-Hampton Inn, Halifax, NS/20260818_170000 (Phil M).jpg", day: "Aug 18 — Hampton Inn, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/3-Hampton Inn, Halifax, NS/20260818_180000 (Phil M).jpg", day: "Aug 18 — Hampton Inn, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 18/3-Hampton Inn, Halifax, NS/20260818_190000 (Phil M).jpg", day: "Aug 18 — Hampton Inn, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/1-Pier 21, Halifax, NS/20260819_000000 (Itinerary).jpg", day: "Aug 19 — Pier 21, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/1-Pier 21, Halifax, NS/20260819_000000 (Map).jpg", day: "Aug 19 — Pier 21, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/1-Pier 21, Halifax, NS/20260819_094409.jpg", day: "Aug 19 — Pier 21, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/1-Pier 21, Halifax, NS/20260819_095206.jpg", day: "Aug 19 — Pier 21, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/1-Pier 21, Halifax, NS/20260819_095556.jpg", day: "Aug 19 — Pier 21, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/1-Pier 21, Halifax, NS/20260819_095758.jpg", day: "Aug 19 — Pier 21, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/1-Pier 21, Halifax, NS/20260819_100036.jpg", day: "Aug 19 — Pier 21, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/1-Pier 21, Halifax, NS/20260819_100249.jpg", day: "Aug 19 — Pier 21, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/1-Pier 21, Halifax, NS/20260819_101431.jpg", day: "Aug 19 — Pier 21, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/2-Waterfront, Halifax, NS/20260819_122802.jpg", day: "Aug 19 — Waterfront, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/2-Waterfront, Halifax, NS/20260819_123347.jpg", day: "Aug 19 — Waterfront, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/2-Waterfront, Halifax, NS/20260819_125341.jpg", day: "Aug 19 — Waterfront, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/2-Waterfront, Halifax, NS/20260819_131647.jpg", day: "Aug 19 — Waterfront, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/2-Waterfront, Halifax, NS/20260819_140000 (Joyce M).jpg", day: "Aug 19 — Waterfront, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/2-Waterfront, Halifax, NS/20260819_150000 (Joyce M).jpg", day: "Aug 19 — Waterfront, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/2-Waterfront, Halifax, NS/20260819_160000 (Joyce M).jpg", day: "Aug 19 — Waterfront, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/2-Waterfront, Halifax, NS/20260819_170000 (Joyce M).jpg", day: "Aug 19 — Waterfront, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/2-Waterfront, Halifax, NS/20260819_180000 (Joyce M).jpg", day: "Aug 19 — Waterfront, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/2-Waterfront, Halifax, NS/20260819_190000 (Joyce M).jpg", day: "Aug 19 — Waterfront, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_132505.jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_133033.jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_140000 (Phil M).jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_141000 (Phil M).jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_141047.jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_142509.jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_142813.jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_142818.jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_143000 (Phil M).jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_143239.jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_144100 (Phil M).jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_144200 (Phil M).jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_144300 (Phil M).jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_144400 (Phil M).jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_144500 (Phil M).jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/3-Alexander Keith's Brewery, Halifax, NS/20260819_150339.jpg", day: "Aug 19 — Alexander Keith's Brewery, Halifax, NS", caption: "" },
+                    { src: "2026 Maritimes/Aug 19/4-Misc/20260826_999999 Maritimes Route Map – Google Earth.jpg", day: "Aug 19 — Misc", caption: "" },
+                ]
+            },
+        /* Remove commented area to add new album
+            "2-2026-New": {
+                title: "New",
+                password: "changeme",
+                slides: [
+                    { src: "2026 New/Coming Soon.jpg", day: "2026 New — Album image", caption: "" },
+                ]
+            },
+        */
+        };
+
+        let currentActiveSlides = [];
+        let currentIndex = 0;
+        const captionStorageKey = 'photo-albums-captions-v1';
+        const unlockStorageKey = 'photo-albums-unlocked-v1';
+        let savedCaptions = {};
+        let pendingAlbumKey = null;
+
+        function albumCommentsPath(slides) {
+            const albumFolderName = slides[0]?.src.split('/')[0] || 'photo-albums';
+            const albumFileName = albumFolderName.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            return `${albumFolderName}/${albumFileName}-comments.json`;
+        }
+
+        function currentCaption(slide) {
+            return savedCaptions[slide.src] ?? slide.caption ?? '';
+        }
+
+        async function loadCaptions(slides) {
+            savedCaptions = {};
+            try {
+                const response = await fetch(encodeURI(albumCommentsPath(slides)));
+                if (!response.ok) throw new Error('Comments file not found');
+                const comments = await response.json();
+                if (comments && !Array.isArray(comments) && typeof comments === 'object') savedCaptions = comments;
+            } catch (error) {
+                try {
+                    savedCaptions = JSON.parse(localStorage.getItem(captionStorageKey)) || {};
+                } catch (storageError) {
+                    savedCaptions = {};
+                }
+            }
+        }
+
+        function initMenu() {
+            const menuGrid = document.getElementById('menu-options');
+            menuGrid.innerHTML = '';
+            Object.keys(albums).forEach(key => {
+                const btn = document.createElement('button');
+                btn.className = 'menu-btn';
+                btn.innerText = albums[key].title;
+                btn.onclick = () => openAlbum(key);
+                menuGrid.appendChild(btn);
+            });
+        }
+
+        function unlockedAlbums() {
+            try {
+                return JSON.parse(sessionStorage.getItem(unlockStorageKey)) || {};
+            } catch (error) {
+                return {};
+            }
+        }
+
+        function openAlbum(albumKey) {
+            if (unlockedAlbums()[albumKey]) {
+                startSlideshow(albumKey);
+                return;
+            }
+
+            pendingAlbumKey = albumKey;
+            document.getElementById('password-album-title').innerText = albums[albumKey].title;
+            document.getElementById('album-password').value = '';
+            document.getElementById('password-error').innerText = '';
+            document.getElementById('menu-screen').classList.add('hidden');
+            document.getElementById('password-screen').classList.remove('hidden');
+            document.getElementById('album-password').focus();
+        }
+
+        function cancelPassword() {
+            pendingAlbumKey = null;
+            document.getElementById('password-screen').classList.add('hidden');
+            document.getElementById('menu-screen').classList.remove('hidden');
+        }
+
+        function unlockAlbum(event) {
+            event.preventDefault();
+            const password = document.getElementById('album-password').value;
+            const album = albums[pendingAlbumKey];
+
+            if (!album || password !== album.password) {
+                document.getElementById('password-error').innerText = 'That password is not correct. Please try again.';
+                return;
+            }
+
+            const unlocked = unlockedAlbums();
+            unlocked[pendingAlbumKey] = true;
+            sessionStorage.setItem(unlockStorageKey, JSON.stringify(unlocked));
+            document.getElementById('password-screen').classList.add('hidden');
+            startSlideshow(pendingAlbumKey);
+        }
+
+        function populateDaySelector() {
+            const selector = document.getElementById('day-selector');
+            const days = [...new Set(currentActiveSlides.map(slide => slide.day.split(' — ')[0]))];
+            selector.innerHTML = days.map(day => `<option value="${day}">${day}</option>`).join('');
+        }
+
+        function jumpToDay(day) {
+            const firstSlideOfDay = currentActiveSlides.findIndex(slide => slide.day.split(' — ')[0] === day);
+            if (firstSlideOfDay >= 0) {
+                currentIndex = firstSlideOfDay;
+                displayMedia();
+            }
+        }
+
+        async function startSlideshow(albumKey) {
+            currentActiveSlides = albums[albumKey].slides;
+            currentIndex = 0;
+            document.getElementById('menu-screen').classList.add('hidden');
+            document.getElementById('password-screen').classList.add('hidden');
+            document.getElementById('viewer-screen').classList.remove('hidden');
+            populateDaySelector();
+            await loadCaptions(currentActiveSlides);
+            displayMedia();
+        }
+
+        function displayMedia() {
+            if (!currentActiveSlides.length) return;
+            const slide = currentActiveSlides[currentIndex];
+            const imgTag = document.getElementById('main-photo');
+            const videoTag = document.getElementById('main-video');
+            videoTag.pause();
+
+            if (slide.src.toLowerCase().endsWith('.mp4')) {
+                imgTag.classList.add('hidden');
+                videoTag.classList.remove('hidden');
+                videoTag.src = slide.src;
+            } else {
+                videoTag.classList.add('hidden');
+                imgTag.classList.remove('hidden');
+                imgTag.src = slide.src;
+            }
+
+            const dayParts = slide.day.split(' — ');
+            document.getElementById('date-label').innerText = dayParts.shift();
+            document.getElementById('folder-label').innerText = dayParts.join(' — ');
+            document.getElementById('filename-label').innerText = slide.src.split('/').pop();
+            document.getElementById('caption-label').innerText = currentCaption(slide);
+            document.getElementById('day-selector').value = dayParts[0];
+            document.getElementById('photo-counter').innerText = `${currentIndex + 1} / ${currentActiveSlides.length}`;
+        }
+
+        function navigate(direction) {
+            if (!currentActiveSlides.length) return;
+            currentIndex += direction;
+            if (currentIndex >= currentActiveSlides.length) currentIndex = 0;
+            if (currentIndex < 0) currentIndex = currentActiveSlides.length - 1;
+            displayMedia();
+        }
+
+        function goHome() {
+            document.getElementById('main-video').pause();
+            document.getElementById('viewer-screen').classList.add('hidden');
+            document.getElementById('menu-screen').classList.remove('hidden');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('viewer-screen').classList.contains('hidden')) return;
+            if (e.key === 'ArrowRight') navigate(1);
+            if (e.key === 'ArrowLeft') navigate(-1);
+            if (e.key === 'Escape') goHome();
+        });
+
+        initMenu();
+    </script>
+</body>
+</html>
