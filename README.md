@@ -4,8 +4,8 @@ This is a photo and video slideshow website. It can be viewed on GitHub Pages an
 
 ## What each file does
 
-- `index.html` is the public slideshow website. It uses a simple access code for each album and loads the published comments JSON file.
-- `index-edit.html` is the private editor used on a PC. It has no access-code screen and lets you add or change comments.
+- `index.html` is the public slideshow website and loads the published comments JSON file.
+- `index-edit.html` is the editor used on a PC to add or change comments.
 - `Tools/generate-album-list.ps1` and `Tools/run-generate-album-list.cmd` create the slide-list text for a new album.
 - Each album has its own comments JSON file inside its main folder.
 
@@ -92,16 +92,6 @@ Copy an existing album section, then change its title, slide list, and folder pa
 - In `index.html`, use a numbered key to keep the menu order, for example `"3-2026-maritimes"`.
 - Use the folder name as the title, for example `title: "2026 Maritimes"`.
 - Paste the generated lines inside `slides: [ ... ]`.
-- In `index.html`, give every album a different numeric access code:
-
-```javascript
-accessCode: "202608", // Use a different numeric access code for each album.
-```
-
-The access code is only casual privacy. Because the website is public, it is not a secure password and must never be a personal password.
-
-`index-edit.html` does not need an access-code line.
-
 ## Add or change comments
 
 1. Open `index-edit.html` on your PC.
