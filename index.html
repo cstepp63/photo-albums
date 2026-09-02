@@ -14,15 +14,15 @@
         .menu-btn { padding: 20px 40px; background: #222; border: 2px solid #333; color: white; font-size: 1.25rem; font-weight: bold; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
         .menu-btn:hover { background: #0070f3; border-color: #0070f3; transform: translateY(-2px); }
 
-        /* PASSWORD SCREEN STYLES */
-        #password-screen { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; background: #111; }
-        .password-card { width: min(360px, calc(100vw - 48px)); padding: 30px; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; text-align: center; }
-        .password-card h2 { margin: 0 0 10px; }
-        .password-card p { color: #bbb; margin: 0 0 20px; }
-        .password-input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #555; border-radius: 6px; background: #111; color: #fff; font-size: 1rem; }
-        .password-actions { display: flex; gap: 10px; margin-top: 14px; }
-        .password-actions button { flex: 1; }
-        .password-error { min-height: 20px; margin: 10px 0 0; color: #ff8585 !important; font-size: 0.9rem; }
+        /* ACCESS-CODE SCREEN STYLES */
+        #access-code-screen { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; background: #111; }
+        .access-code-card { width: min(360px, calc(100vw - 48px)); padding: 30px; background: #1a1a1a; border: 1px solid #333; border-radius: 10px; text-align: center; }
+        .access-code-card h2 { margin: 0 0 10px; }
+        .access-code-card p { color: #bbb; margin: 0 0 20px; }
+        .access-code-input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #555; border-radius: 6px; background: #111; color: #fff; font-size: 1rem; }
+        .access-code-actions { display: flex; gap: 10px; margin-top: 14px; }
+        .access-code-actions button { flex: 1; }
+        .access-code-error { min-height: 20px; margin: 10px 0 0; color: #ff8585 !important; font-size: 0.9rem; }
 
         /* VIEWER SCREEN STYLES */
         .viewer { display: flex; width: 100vw; height: 100vh; }
@@ -84,18 +84,18 @@
         </div>
     </div>
 
-    <!-- PASSWORD SCREEN: shown before an album opens -->
-    <div id="password-screen" class="hidden">
-        <form class="password-card" onsubmit="unlockAlbum(event)">
-            <h2 id="password-album-title">Photo Album</h2>
-            <p>Enter the album password to continue.</p>
-            <input class="password-input" id="album-password" type="password" autocomplete="current-password" required>
-            <div class="password-actions">
-                <button class="nav-btn" type="button" onclick="cancelPassword()">Cancel</button>
-                <button class="nav-btn" type="submit">Open Album</button>
+    <!-- ACCESS-CODE SCREEN: shown before an album opens -->
+    <div id="access-code-screen" class="hidden">
+        <div class="access-code-card">
+            <h2 id="access-code-album-title">Photo Album</h2>
+            <p>Enter the album access code to continue.</p>
+            <input class="access-code-input" id="album-access-code" type="text" inputmode="numeric" autocomplete="off" maxlength="12" spellcheck="false" onkeydown="handleAccessCodeKey(event)">
+            <div class="access-code-actions">
+                <button class="nav-btn" type="button" onclick="cancelAccessCode()">Cancel</button>
+                <button class="nav-btn" type="button" onclick="unlockAlbum()">Open Album</button>
             </div>
-            <p class="password-error" id="password-error" aria-live="polite"></p>
-        </form>
+            <p class="access-code-error" id="access-code-error" aria-live="polite"></p>
+        </div>
     </div>
 
     <!-- SCREEN 2: THE SLIDESHOW VIEWER -->
@@ -126,7 +126,7 @@
         const albums = {
             "1-2026-maritimes": {
                 title: "2026 Maritimes",
-                password: "maritimes",
+                accessCode: "202608", // Change this to the access code you want to share.
                 slides: [
                     { src: "2026 Maritimes/Aug 7/1-Halifax Waterfront/20260807_100000 (Heidi A).jpg", day: "Aug 7 — Halifax Waterfront", caption: "" },
                     { src: "2026 Maritimes/Aug 7/1-Halifax Waterfront/20260807_110000 (Heidi A).jpg", day: "Aug 7 — Halifax Waterfront", caption: "" },
@@ -456,7 +456,7 @@
         /* Remove commented area to add new album
             "2-2026-New": {
                 title: "New",
-                password: "changeme",
+                accessCode: "000000",
                 slides: [
                     { src: "2026 New/Coming Soon.jpg", day: "2026 New — Album image", caption: "" },
                 ]
@@ -467,7 +467,7 @@
         let currentActiveSlides = [];
         let currentIndex = 0;
         const captionStorageKey = 'photo-albums-captions-v1';
-        const unlockStorageKey = 'photo-albums-unlocked-v1';
+        const unlockStorageKey = 'photo-albums-unlocked-v2';
         let savedCaptions = {};
         let pendingAlbumKey = null;
 
@@ -483,6 +483,17 @@
 
         async function loadCaptions(slides) {
             savedCaptions = {};
+            // Browsers block JSON requests from files opened directly on a computer.
+            // In that case, use the locally saved captions without attempting the request.
+            if (window.location.protocol === 'file:') {
+                try {
+                    savedCaptions = JSON.parse(localStorage.getItem(captionStorageKey)) || {};
+                } catch (storageError) {
+                    savedCaptions = {};
+                }
+                return;
+            }
+
             try {
                 const response = await fetch(encodeURI(albumCommentsPath(slides)));
                 if (!response.ok) throw new Error('Comments file not found');
@@ -524,34 +535,37 @@
             }
 
             pendingAlbumKey = albumKey;
-            document.getElementById('password-album-title').innerText = albums[albumKey].title;
-            document.getElementById('album-password').value = '';
-            document.getElementById('password-error').innerText = '';
+            document.getElementById('access-code-album-title').innerText = albums[albumKey].title;
+            document.getElementById('album-access-code').value = '';
+            document.getElementById('access-code-error').innerText = '';
             document.getElementById('menu-screen').classList.add('hidden');
-            document.getElementById('password-screen').classList.remove('hidden');
-            document.getElementById('album-password').focus();
+            document.getElementById('access-code-screen').classList.remove('hidden');
+            document.getElementById('album-access-code').focus();
         }
 
-        function cancelPassword() {
+        function cancelAccessCode() {
             pendingAlbumKey = null;
-            document.getElementById('password-screen').classList.add('hidden');
+            document.getElementById('access-code-screen').classList.add('hidden');
             document.getElementById('menu-screen').classList.remove('hidden');
         }
 
-        function unlockAlbum(event) {
-            event.preventDefault();
-            const password = document.getElementById('album-password').value;
+        function handleAccessCodeKey(event) {
+            if (event.key === 'Enter') unlockAlbum();
+        }
+
+        function unlockAlbum() {
+            const accessCode = document.getElementById('album-access-code').value.replace(/\D/g, '');
             const album = albums[pendingAlbumKey];
 
-            if (!album || password !== album.password) {
-                document.getElementById('password-error').innerText = 'That password is not correct. Please try again.';
+            if (!album || accessCode !== album.accessCode) {
+                document.getElementById('access-code-error').innerText = 'That access code is not correct. Please try again.';
                 return;
             }
 
             const unlocked = unlockedAlbums();
             unlocked[pendingAlbumKey] = true;
             sessionStorage.setItem(unlockStorageKey, JSON.stringify(unlocked));
-            document.getElementById('password-screen').classList.add('hidden');
+            document.getElementById('access-code-screen').classList.add('hidden');
             startSlideshow(pendingAlbumKey);
         }
 
@@ -573,7 +587,7 @@
             currentActiveSlides = albums[albumKey].slides;
             currentIndex = 0;
             document.getElementById('menu-screen').classList.add('hidden');
-            document.getElementById('password-screen').classList.add('hidden');
+            document.getElementById('access-code-screen').classList.add('hidden');
             document.getElementById('viewer-screen').classList.remove('hidden');
             populateDaySelector();
             await loadCaptions(currentActiveSlides);

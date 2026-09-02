@@ -40,13 +40,13 @@ Save the optimized copies to a new location. Do not overwrite your only original
 Create the main album folder in the `photo-albums` folder, for example:
 
 ```text
-2027 Maritimes/
-  Aug 27/
+2026 Maritimes/
+  Aug 26/
     1-Halifax/
     2-Peggy's Cove/
 ```
 
-- Use date folders, such as `Aug 27`.
+- Use date folders, such as `Aug 26`.
 - Use numbered location folders, such as `1-Halifax` and `2-Peggy's Cove`.
 - Put the optimized images and videos in the appropriate location folder.
 - Folder and file names must stay exactly the same after making the slide list. GitHub is case-sensitive.
@@ -61,10 +61,10 @@ Keep these two helper files in the main `photo-albums` folder, beside all album 
 Double-click `run-generate-album-list.cmd`, then type the exact album folder name, for example:
 
 ```text
-2027 Maritimes
+2026 Maritimes
 ```
 
-It creates a file such as `2027-maritimes-list.txt` in the main `photo-albums` folder. The window will tell you where the file was created.
+It creates a file such as `2026-maritimes-list.txt` in the main `photo-albums` folder. The window will tell you where the file was created.
 
 Move that text file into the matching album folder when you are ready to keep it there. Open it, copy its contents, and paste the lines into the new album's `slides: [` section.
 
@@ -78,16 +78,16 @@ const albums = {
 
 Use an existing album as the example and add the new album in both files.
 
-- Number the album key so menu order stays correct, for example `"2-2027-maritimes"`.
-- Use the folder name for the title, for example `title: "2027 Maritimes"`.
+- Number the album key so menu order stays correct, for example `"2-2026-maritimes"`.
+- Use the folder name for the title, for example `title: "2026 Maritimes"`.
 - Paste the generated slide-list lines after `slides: [`.
-- In `index.html`, add a casual password line for the new album, for example:
+- In `index.html`, add a casual numeric access-code line for the new album:
 
 ```javascript
-password: "your-shared-album-password",
+accessCode: "202608", // Use a different numeric access code for each album.
 ```
 
-This password is only for casual privacy. Because the website is public, it is not secure against someone who knows how to inspect website files. Do not reuse a personal password.
+This access code is only for casual privacy. Because the website is public, it is not secure against someone who knows how to inspect website files. Do not reuse a personal password.
 
 ## 6. Add comments
 
@@ -98,13 +98,13 @@ This password is only for casual privacy. Because the website is public, it is n
 5. Rename the downloaded file to match the album folder. For example:
 
 ```text
-2027-maritimes-comments.json
+2026-maritimes-comments.json
 ```
 
 6. Put the JSON file inside the matching album folder:
 
 ```text
-2027 Maritimes/2027-maritimes-comments.json
+2026 Maritimes/2026-maritimes-comments.json
 ```
 
 The published website loads the JSON file. When `index.html` is double-clicked on a PC, it uses the browser's locally saved comments instead, because browsers block direct JSON loading from `file:///` pages.
@@ -118,7 +118,7 @@ Commit and push:
 - The entire new album folder, including photos, videos, and its comments JSON file
 - Any helper files and this README if you want them backed up in GitHub
 
-After GitHub Pages updates, open the website's `https://` address and test the new album, comments, videos, and password.
+After GitHub Pages updates, open the website's `https://` address and test the new album, comments, videos, and access code.
 
 ## Backups
 
