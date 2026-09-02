@@ -1,4 +1,5 @@
 # This script lives in photo-albums\Tools, so the project folder is one level above Tools.
+$toolsFolder = Split-Path -Parent $PSCommandPath
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $albumFolderName = Read-Host 'Enter the album folder name (example: 2026 Maritimes)'
 $albumPath = Join-Path $projectRoot $albumFolderName
@@ -13,7 +14,7 @@ if (-not (Test-Path -LiteralPath $albumPath -PathType Container)) {
 
 $albumFileName = $albumFolderName.ToLower().Trim() -replace '[^a-z0-9]+', '-'
 $albumFileName = $albumFileName.Trim('-')
-$outputPath = Join-Path $projectRoot "$albumFileName-list.txt"
+$outputPath = Join-Path $toolsFolder "$albumFileName-list.txt"
 
 Get-ChildItem -LiteralPath $albumPath -Recurse -File |
 Where-Object { $_.Extension -match '^\.(jpg|jpeg|png|mp4)$' } |
@@ -29,5 +30,5 @@ ForEach-Object {
 Out-File -FilePath $outputPath -Encoding utf8
 
 Write-Host "Finished. Your list is here: $outputPath"
-Write-Host "Move this file into the '$albumFolderName' folder when you are ready to keep it with that album."
+Write-Host "The list stays in the Tools folder. Copy its contents into the new album section in your HTML files."
 Read-Host 'Press Enter to close this window'
